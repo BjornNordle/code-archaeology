@@ -33,12 +33,12 @@ if [ ! -f "${RUNNER_DIR}/config.sh" ]; then
     echo "==> Downloading GitHub Actions runner v${RUNNER_VERSION}..."
     sudo rm -rf "$RUNNER_DIR"
     sudo -u "$RUNNER_USER" mkdir -p "$RUNNER_DIR"
-    rm -f "/tmp/${TARBALL}"
+    sudo rm -f "/tmp/${TARBALL}"
     sudo -u "$RUNNER_USER" curl -fsSL \
         "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/${TARBALL}" \
         -o "/tmp/${TARBALL}"
     sudo -u "$RUNNER_USER" tar -xzf "/tmp/${TARBALL}" -C "$RUNNER_DIR"
-    rm -f "/tmp/${TARBALL}"
+    sudo rm -f "/tmp/${TARBALL}"
 else
     echo "==> Runner already downloaded, skipping."
 fi
