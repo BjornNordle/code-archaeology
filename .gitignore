@@ -1,1 +1,18 @@
+<<<<<<< HEAD
 
+=======
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+.env.*
+data/
+!data/.gitkeep
+.DS_Store
+*.swp
+.idea/
+.vscode/
+*.egg-info/
+>>>>>>> e1093d4 (Initial scaffold: scanner that walks every commit and visualises code-quality timeline)
