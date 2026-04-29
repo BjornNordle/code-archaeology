@@ -1,6 +1,9 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
+=======
+>>>>>>> e1093d4 (Initial scaffold: scanner that walks every commit and visualises code-quality timeline)
 __pycache__/
 *.pyc
 *.pyo
@@ -15,4 +18,7 @@ data/
 .idea/
 .vscode/
 *.egg-info/
+<<<<<<< HEAD
+>>>>>>> e1093d4 (Initial scaffold: scanner that walks every commit and visualises code-quality timeline)
+=======
 >>>>>>> e1093d4 (Initial scaffold: scanner that walks every commit and visualises code-quality timeline)
