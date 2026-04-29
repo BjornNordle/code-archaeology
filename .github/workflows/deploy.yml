@@ -1,0 +1,52 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat > .env <<EOF
+          DOMAIN=${{ secrets.DOMAIN }}
+          EOF
+
+      - name: Build and restart
+        run: |
+          docker compose up -d --build
+          docker compose restart caddy
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 12); do
+            curl -sf http://localhost:8081/api/health > /dev/null && echo "OK" && exit 0
+            echo "Waiting... ($i/12)"
+            sleep 10
+          done
+          echo "Health check failed after 2 minutes" && exit 1
+
+      - name: Notify deploy success
+        if: success() && env.UPTIME_DEPLOY_API_KEY != ''
+        env:
+          UPTIME_DEPLOY_API_KEY: ${{ secrets.UPTIME_DEPLOY_API_KEY }}
+        run: |
+          curl -sf -X POST http://localhost/api/notifications/broadcast \
+            -H "X-API-Key: $UPTIME_DEPLOY_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"title\":\"[DEPLOYED] code-archaeology\",\"body\":\"Deploy succeeded — commit ${{ github.sha }} by ${{ github.actor }}\",\"event\":\"deploy_success\",\"is_down\":false}" || true
+
+      - name: Notify deploy failure
+        if: failure() && env.UPTIME_DEPLOY_API_KEY != ''
+        env:
+          UPTIME_DEPLOY_API_KEY: ${{ secrets.UPTIME_DEPLOY_API_KEY }}
+        run: |
+          curl -sf -X POST http://localhost/api/notifications/broadcast \
+            -H "X-API-Key: $UPTIME_DEPLOY_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"title\":\"[DEPLOY FAILED] code-archaeology\",\"body\":\"Deploy FAILED — commit ${{ github.sha }} by ${{ github.actor }}\",\"event\":\"deploy_failure\",\"is_down\":true}" || true

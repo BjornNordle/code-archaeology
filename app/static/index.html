@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>code-archaeology</title>
+<link rel="stylesheet" href="/static/styles.css"/>
+</head>
+<body>
+<header>
+  <div>
+    <h1>code-archaeology</h1>
+    <div class="sub">Per-commit architecture timelines for any git repo</div>
+  </div>
+  <nav>
+    <a href="/" class="active">Repos</a>
+    <a href="/api/docs">API</a>
+    <a id="version-link" class="muted" href="#"></a>
+  </nav>
+</header>
+
+<main>
+<section>
+  <div class="row" style="justify-content: space-between;">
+    <h2 style="margin: 0;">Tracked repositories</h2>
+    <button class="primary" id="add-btn">Add repo</button>
+  </div>
+  <div id="repos"></div>
+</section>
+</main>
+
+<dialog id="add-dialog">
+  <h3>Add a repository</h3>
+  <label>Name <input id="f-name" placeholder="my-app" required></label>
+  <label>Remote URL (optional) <input id="f-url" placeholder="https://github.com/owner/repo.git"></label>
+  <label>Local path (optional, mutually exclusive with URL)
+    <input id="f-local" placeholder="/repos/my-app">
+  </label>
+  <label>Sub-path to analyze (optional, e.g. <span class="mono">app</span>)
+    <input id="f-sub">
+  </label>
+  <label>Default branch <input id="f-branch" value="main"></label>
+  <div class="actions">
+    <button id="cancel-btn">Cancel</button>
+    <button class="primary" id="save-btn">Save</button>
+  </div>
+</dialog>
+
+<script src="/static/app.js"></script>
+<script>
+  initIndexPage();
+</script>
+</body>
+</html>

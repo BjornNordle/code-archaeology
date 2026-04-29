@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>code-archaeology — repo</title>
+<link rel="stylesheet" href="/static/styles.css"/>
+</head>
+<body>
+<header>
+  <div>
+    <h1 id="repo-name">…</h1>
+    <div class="sub" id="repo-sub">loading…</div>
+  </div>
+  <nav>
+    <a href="/">← All repos</a>
+    <a href="/api/docs">API</a>
+  </nav>
+</header>
+
+<main>
+<section>
+  <div class="row" style="justify-content: space-between; align-items: flex-start;">
+    <div class="summary" id="summary"></div>
+    <div class="row">
+      <button id="scan-btn" class="primary">Scan commits…</button>
+      <button id="refresh-btn">Refresh</button>
+    </div>
+  </div>
+  <div id="job-status" class="sub" style="margin-top: 12px;"></div>
+</section>
+
+<section>
+  <h2>Timeline</h2>
+  <div class="sub">Aggregate metrics over every scanned commit. Click a point or drag the scrubber to inspect.</div>
+  <div class="grid" style="margin-top: 16px;">
+    <div class="chart-wrap"><canvas id="chart-loc"></canvas></div>
+    <div class="chart-wrap"><canvas id="chart-classes"></canvas></div>
+    <div class="chart-wrap"><canvas id="chart-instability"></canvas></div>
+    <div class="chart-wrap"><canvas id="chart-lcom4"></canvas></div>
+  </div>
+  <div class="scrubber" style="margin-top: 20px;">
+    <input type="range" id="scrubber" min="0" max="0" value="0">
+    <div class="scrubber-meta">
+      <span class="commit" id="scrubber-sha">—</span>
+      <span id="scrubber-msg" style="flex: 1; text-align: center;">—</span>
+      <span id="scrubber-date">—</span>
+    </div>
+    <div class="row" style="justify-content: flex-end;">
+      <a id="snapshot-link" class="btn" href="#" style="display: none;">Open architecture snapshot →</a>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Hotspots — modules with worst-trending metrics</h2>
+  <div class="row" style="margin-bottom: 12px;">
+    <label class="sub">Window <input id="hot-window" type="number" value="20" min="2" max="500" style="width: 80px;"></label>
+    <button id="hot-refresh">Recompute</button>
+  </div>
+  <div id="hotspots"></div>
+</section>
+
+<section>
+  <h2>Scanned commits</h2>
+  <div id="commits"></div>
+</section>
+</main>
+
+<dialog id="scan-dialog">
+  <h3>Scan commits</h3>
+  <label>Filter
+    <select id="f-kind">
+      <option value="all" selected>All commits (default)</option>
+      <option value="last_n">Last N commits</option>
+      <option value="since">Since date (YYYY-MM-DD)</option>
+      <option value="range">Range from→to (SHA prefixes)</option>
+      <option value="sha_list">Specific SHAs (comma-sep)</option>
+    </select>
+  </label>
+  <div id="f-args"></div>
+  <div class="actions">
+    <button id="scan-cancel">Cancel</button>
+    <button class="primary" id="scan-go">Start</button>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="/static/app.js"></script>
+<script>
+  initRepoPage();
+</script>
+</body>
+</html>

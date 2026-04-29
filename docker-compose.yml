@@ -1,0 +1,42 @@
+services:
+  app:
+    build: ./app
+    restart: unless-stopped
+    volumes:
+      - app_data:/app/data
+      # Optional: mount one or more local repos read-only so the scanner can
+      # treat them as `local_path` repos without cloning. Uncomment + edit:
+      # - /home/github-runner/repos:/repos:ro
+    environment:
+      DATABASE_URL: sqlite:////app/data/archaeology.db
+      PORT: "8000"
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+      # Uncomment when DOMAIN is set:
+      # - "443:443"
+      # - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    depends_on:
+      - app
+
+volumes:
+  app_data:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,13 @@
+[
+  {
+    "version": "0.1.0",
+    "date": "2026-04-29",
+    "changes": [
+      {"type": "feature", "text": "Initial scaffold — register repos, scan every commit, browse timeline + per-commit architecture snapshots"},
+      {"type": "feature", "text": "Python AST analyzer with LOC, fan-in/out, instability, LCOM4 per module"},
+      {"type": "feature", "text": "Generic LOC fallback for non-Python files (TODO: deeper analysis via tree-sitter)"},
+      {"type": "feature", "text": "Hot-spots view — modules with worst-trending metrics over a window"},
+      {"type": "feature", "text": "Configurable commit filter (all / since / last_n / range / sha_list); default scans every commit"}
+    ]
+  }
+]

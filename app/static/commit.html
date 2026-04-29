@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>code-archaeology — commit snapshot</title>
+<link rel="stylesheet" href="/static/styles.css"/>
+</head>
+<body>
+<header>
+  <div>
+    <h1 id="commit-title">…</h1>
+    <div class="sub" id="commit-meta">loading…</div>
+  </div>
+  <nav>
+    <a id="back-link" href="/">← Back</a>
+    <a href="/api/docs">API</a>
+  </nav>
+</header>
+
+<main>
+<section>
+  <h2>Architecture at this commit</h2>
+  <div class="sub">Force-directed module graph. Node size = LOC, color = package. Click to highlight.</div>
+  <div class="summary" id="snapshot-summary"></div>
+  <svg id="graph"></svg>
+  <div id="graph-info" class="module-info"></div>
+  <div class="legend">
+    <span><span class="swatch" style="background: var(--accent);"></span>app root</span>
+    <span><span class="swatch" style="background: var(--accent-2);"></span>routers</span>
+    <span><span class="swatch" style="background: var(--green);"></span>data layer</span>
+    <span style="margin-left: auto;">arrow: importer → imported</span>
+  </div>
+</section>
+
+<section>
+  <h2>Coupling &amp; cohesion metrics</h2>
+  <div class="sub">
+    <strong>Ca</strong> afferent · <strong>Ce</strong> efferent · <strong>I</strong> = Ce/(Ce+Ca) · <strong>LCOM4</strong> = method-cluster count (lower = more cohesive).
+  </div>
+  <table id="metrics-table">
+    <thead><tr>
+      <th data-sort="module">module</th>
+      <th data-sort="lang">lang</th>
+      <th data-sort="loc">LOC</th>
+      <th data-sort="classes">cls</th>
+      <th data-sort="functions">fn</th>
+      <th data-sort="fan_in">Ca</th>
+      <th data-sort="fan_out">Ce</th>
+      <th data-sort="instability">I</th>
+      <th data-sort="avg_lcom4">LCOM4</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Architectural layers</h2>
+  <pre class="mermaid" id="mermaid-layers"></pre>
+</section>
+
+<section>
+  <h2>ORM class diagram</h2>
+  <pre class="mermaid" id="mermaid-classes"></pre>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script src="/static/app.js"></script>
+<script>
+  initCommitPage();
+</script>
+</body>
+</html>
