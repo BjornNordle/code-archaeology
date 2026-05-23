@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.1.1",
+    "date": "2026-05-23",
+    "changes": [
+      {"type": "fix", "text": "Caddyfile: serve HTTP on :80 when DOMAIN is unset so IP/LAN access works; HSTS now only sent over HTTPS"}
+    ]
+  },
+  {
     "version": "0.1.0",
     "date": "2026-04-29",
     "changes": [
