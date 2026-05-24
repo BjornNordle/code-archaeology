@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.1.4",
+    "date": "2026-05-24",
+    "changes": [
+      {"type": "fix", "text": "Timeline charts were empty because drawCharts() set parsing:false + normalized:true while still passing raw numeric arrays against category labels — Chart.js couldn't project the points onto the x-axis. Removed both flags (no perf benefit at our scale) and added spanGaps so commits with null avg_lcom4 render as gaps."}
+    ]
+  },
+  {
     "version": "0.1.3",
     "date": "2026-05-24",
     "changes": [

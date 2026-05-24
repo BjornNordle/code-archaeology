@@ -173,7 +173,7 @@ function drawCharts() {
     data: {},
     options: {
       responsive: true, maintainAspectRatio: false,
-      animation: false, parsing: false, normalized: true,
+      animation: false,
       plugins: {
         legend: { labels: { color: "#9aa0a6" } },
         tooltip: {
@@ -201,6 +201,7 @@ function drawCharts() {
   const dataset = (label, points, color) => ({
     label, data: points, borderColor: color, backgroundColor: color + "33",
     borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.2, fill: false,
+    spanGaps: true,
   });
 
   const mk = (id, label, key, color, yLabel) => {
