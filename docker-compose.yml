@@ -31,8 +31,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    environment:
-      DOMAIN: ${DOMAIN:-localhost}
+    # DOMAIN is not used by the Caddyfile (which binds :80 for any host).
+    # Keep this if you later re-introduce domain-based routing.
     depends_on:
       - app
 

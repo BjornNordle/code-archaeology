@@ -1,11 +1,16 @@
 # Caddyfile for code-archaeology
 #
-# Local / self-signed:    leave DOMAIN unset; serves over HTTP on :8081
-#                         (listens on :80 inside the container, any Host accepted)
-# Production with domain: set DOMAIN=code.yourdomain.com in .env
-#                         and uncomment the 443 ports in docker-compose.yml.
+# Serves plain HTTP on :80 (mapped to :8081 on the host) for any host/IP.
+# auto_https is disabled globally — bare IPs cannot get a trusted cert.
+#
+# To enable HTTPS later: remove the global block, change `:80` to `{$DOMAIN}`
+# (set DOMAIN to a real domain), and uncomment 443 ports in docker-compose.yml.
 
-{$DOMAIN::80} {
+{
+    auto_https off
+}
+
+:80 {
     reverse_proxy app:8000
     encode gzip
 
@@ -15,11 +20,6 @@
         Referrer-Policy "strict-origin-when-cross-origin"
         -Server
     }
-
-    @https {
-        protocol https
-    }
-    header @https Strict-Transport-Security "max-age=31536000; includeSubDomains"
 
     log {
         output stdout
