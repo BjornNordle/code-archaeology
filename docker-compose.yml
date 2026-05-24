@@ -10,6 +10,9 @@ services:
     environment:
       DATABASE_URL: sqlite:////app/data/archaeology.db
       PORT: "8000"
+      # Optional: GitHub PAT used to clone/fetch private https://github.com/... repos.
+      # Set GITHUB_TOKEN in the host shell (or .env) before `docker compose up`.
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     expose:
       - "8000"
     healthcheck:

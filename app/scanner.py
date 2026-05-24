@@ -7,6 +7,7 @@ scans on the same repo can run sequentially without conflict.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import threading
@@ -48,8 +49,28 @@ def _git(args: list[str], cwd: Path, check: bool = True) -> str:
         ["git", *args], cwd=str(cwd), capture_output=True, text=True,
     )
     if check and res.returncode != 0:
-        raise RuntimeError(f"git {' '.join(args)} failed: {res.stderr.strip()}")
+        # Strip any embedded token from the error before raising.
+        raise RuntimeError(f"git {' '.join(args)} failed: {_redact(res.stderr.strip())}")
     return res.stdout
+
+
+def _auth_url(url: str) -> str:
+    """Inject $GITHUB_TOKEN into an https://github.com/... URL when available."""
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token or not url.startswith("https://github.com/"):
+        return url
+    # Don't double-inject if the URL already carries credentials.
+    host_part = url.split("://", 1)[1].split("/", 1)[0]
+    if "@" in host_part:
+        return url
+    return url.replace("https://", f"https://x-access-token:{token}@", 1)
+
+
+def _redact(text: str) -> str:
+    token = os.environ.get("GITHUB_TOKEN")
+    if token and token in text:
+        return text.replace(token, "***")
+    return text
 
 
 def ensure_repo_checkout(repo: Repo) -> Path:
@@ -70,12 +91,15 @@ def ensure_repo_checkout(repo: Repo) -> Path:
 
     REPOS_DIR.mkdir(parents=True, exist_ok=True)
     target = REPOS_DIR / f"repo-{repo.id}"
+    auth_url = _auth_url(repo.url)
     if target.exists() and (target / ".git").exists():
+        # Refresh the remote URL so a rotated $GITHUB_TOKEN takes effect.
+        _git(["remote", "set-url", "origin", auth_url], target, check=False)
         _git(["fetch", "--all", "--tags", "--prune"], target, check=False)
         return target
     if target.exists():
         shutil.rmtree(target)
-    _git(["clone", "--no-single-branch", repo.url, str(target)], REPOS_DIR)
+    _git(["clone", "--no-single-branch", auth_url, str(target)], REPOS_DIR)
     return target
 
 

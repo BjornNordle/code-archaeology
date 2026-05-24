@@ -46,6 +46,22 @@ To scan a host-side repo from inside the container, mount it read-only in
 `docker-compose.yml` (the `/repos` line is commented out by default) and
 register the repo with `local_path: /repos/your-repo`.
 
+## Private GitHub repos
+
+Export a PAT before starting the stack and the scanner will use it when
+cloning/fetching any `https://github.com/...` URL:
+
+```bash
+export GITHUB_TOKEN=ghp_xxx
+docker compose up -d
+```
+
+The token is injected into the clone URL as `x-access-token:$GITHUB_TOKEN`,
+so any token with `repo` scope (classic) or `Contents: read` (fine-grained)
+works. Rotating the token and restarting the container is enough — the next
+fetch rewrites the remote URL automatically. URLs other than `github.com`
+are left untouched.
+
 ## Production deploy
 
 Same self-hosted-runner pattern as uptime-monitor:

@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.1.2",
+    "date": "2026-05-24",
+    "changes": [
+      {"type": "feature", "text": "Scanner injects $GITHUB_TOKEN into https://github.com/... clone/fetch URLs so private repos can be scanned without per-repo credentials"}
+    ]
+  },
+  {
     "version": "0.1.1",
     "date": "2026-05-23",
     "changes": [
