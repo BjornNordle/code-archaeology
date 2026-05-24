@@ -48,19 +48,32 @@ register the repo with `local_path: /repos/your-repo`.
 
 ## Private GitHub repos
 
-Export a PAT before starting the stack and the scanner will use it when
-cloning/fetching any `https://github.com/...` URL:
+The scanner injects `$GITHUB_TOKEN` into the clone URL as
+`x-access-token:$GITHUB_TOKEN` for any `https://github.com/...` repo. Any
+token with `repo` scope (classic) or `Contents: read` (fine-grained) works.
+URLs other than `github.com` are left untouched.
+
+### Local dev
 
 ```bash
 export GITHUB_TOKEN=ghp_xxx
 docker compose up -d
 ```
 
-The token is injected into the clone URL as `x-access-token:$GITHUB_TOKEN`,
-so any token with `repo` scope (classic) or `Contents: read` (fine-grained)
-works. Rotating the token and restarting the container is enough — the next
-fetch rewrites the remote URL automatically. URLs other than `github.com`
-are left untouched.
+### Production (self-hosted runner)
+
+The deploy workflow writes `.env` from GitHub Actions secrets, so put the
+token there instead of touching the server:
+
+1. Repo Settings → Secrets and variables → Actions → New secret
+   `GH_PRIVATE_REPO_TOKEN` = your PAT
+   (Cannot be named `GITHUB_TOKEN` — that prefix is reserved by Actions.)
+2. Push to `main` — the deploy workflow regenerates `.env` with the token
+   and `docker compose up -d --build` bakes it into the container.
+
+Rotating the token: update the secret, push (or re-run the workflow). The
+container env is replaced and the next fetch rewrites the remote URL
+automatically.
 
 ## Production deploy
 

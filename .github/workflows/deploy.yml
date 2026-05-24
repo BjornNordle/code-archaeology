@@ -15,6 +15,7 @@ jobs:
         run: |
           cat > .env <<EOF
           DOMAIN=${{ secrets.DOMAIN }}
+          GITHUB_TOKEN=${{ secrets.GH_PRIVATE_REPO_TOKEN }}
           EOF
 
       - name: Build and restart

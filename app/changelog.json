@@ -3,7 +3,8 @@
     "version": "0.1.2",
     "date": "2026-05-24",
     "changes": [
-      {"type": "feature", "text": "Scanner injects $GITHUB_TOKEN into https://github.com/... clone/fetch URLs so private repos can be scanned without per-repo credentials"}
+      {"type": "feature", "text": "Scanner injects $GITHUB_TOKEN into https://github.com/... clone/fetch URLs so private repos can be scanned without per-repo credentials"},
+      {"type": "feature", "text": "Deploy workflow writes GITHUB_TOKEN into .env from the GH_PRIVATE_REPO_TOKEN repo secret so private-repo access survives reboots and redeploys"}
     ]
   },
   {
