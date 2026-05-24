@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.1.3",
+    "date": "2026-05-24",
+    "changes": [
+      {"type": "fix", "text": "scanner: redact the entire git error message (not just stderr) — the token-bearing URL appears in the echoed command line too, and was leaking into the UI and persisted ScanJob.error rows"},
+      {"type": "fix", "text": "scanner: redaction now also regex-strips any user:token@ basic-auth prefix from https URLs, so stale/rotated tokens in old errors can't leak either"}
+    ]
+  },
+  {
     "version": "0.1.2",
     "date": "2026-05-24",
     "changes": [

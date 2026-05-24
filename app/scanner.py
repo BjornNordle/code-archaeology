@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -49,8 +50,9 @@ def _git(args: list[str], cwd: Path, check: bool = True) -> str:
         ["git", *args], cwd=str(cwd), capture_output=True, text=True,
     )
     if check and res.returncode != 0:
-        # Strip any embedded token from the error before raising.
-        raise RuntimeError(f"git {' '.join(args)} failed: {_redact(res.stderr.strip())}")
+        # Redact the WHOLE message — token may appear in args (the echoed
+        # command line) as well as stderr.
+        raise RuntimeError(_redact(f"git {' '.join(args)} failed: {res.stderr.strip()}"))
     return res.stdout
 
 
@@ -66,10 +68,17 @@ def _auth_url(url: str) -> str:
     return url.replace("https://", f"https://x-access-token:{token}@", 1)
 
 
+# Matches any 'user:token@' (or 'user@') basic-auth prefix in an https URL.
+# We strip both regardless of which token is currently in env, so a rotated
+# or stale token can't leak through.
+_AUTH_PREFIX_RE = re.compile(r"(https?://)[^/@\s]+@")
+
+
 def _redact(text: str) -> str:
+    text = _AUTH_PREFIX_RE.sub(r"\1***@", text)
     token = os.environ.get("GITHUB_TOKEN")
     if token and token in text:
-        return text.replace(token, "***")
+        text = text.replace(token, "***")
     return text
 
 
