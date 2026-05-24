@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-=======
-=======
->>>>>>> e1093d4 (Initial scaffold: scanner that walks every commit and visualises code-quality timeline)
 # code-archaeology
 
 Per-commit architecture-metrics scanner for any git repo. Walks the entire
@@ -76,7 +72,3 @@ is set.
 - **Single-instance worker**: scanner uses a small thread-pool with one job
   per repo at a time. For huge histories on multiple repos in parallel,
   scale up `_executor` workers in `scanner.py`.
-<<<<<<< HEAD
->>>>>>> e1093d4 (Initial scaffold: scanner that walks every commit and visualises code-quality timeline)
-=======
->>>>>>> e1093d4 (Initial scaffold: scanner that walks every commit and visualises code-quality timeline)
