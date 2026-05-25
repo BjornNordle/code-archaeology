@@ -485,24 +485,46 @@ function renderGraph(metrics, edges) {
   }
   const svg = d3.select("#graph");
   svg.selectAll("*").remove();
-  const W = svg.node().clientWidth, H = 540;
-  svg.attr("viewBox", [0, 0, W, H]);
+  const W = Math.max(svg.node().clientWidth, 400);
+  // Give crowded scans more vertical room so initial layout isn't squashed.
+  const H = Math.max(540, Math.round(32 * Math.sqrt(metrics.length) + 360));
+  svg.attr("viewBox", [0, 0, W, H]).style("height", H + "px");
 
-  const colorOf = (name) => {
-    if (name.startsWith("routers.")) return "#ffb74d";
-    if (["database", "scanner", "analyzer"].includes(name)) return "#66bb6a";
-    return "#4dd0e1";
-  };
+  // Strip the longest common dotted prefix so labels are readable when
+  // every module is e.g. "app.routers.foo".
+  const names = metrics.map(m => m.module);
+  let commonPrefix = "";
+  if (names.length > 1) {
+    const first = names[0].split(".");
+    for (let i = 1; i <= first.length; i++) {
+      const cand = first.slice(0, i).join(".") + ".";
+      if (names.every(n => n.startsWith(cand))) commonPrefix = cand;
+      else break;
+    }
+  }
+  const stripPrefix = s => (commonPrefix && s.startsWith(commonPrefix)) ? s.slice(commonPrefix.length) : s;
+
+  const isRouter = name => name.startsWith("routers.") || name.includes(".routers.");
+  const isData = name => /(^|\.)(database|scanner|analyzer)$/.test(name);
+  const colorOf = name => isRouter(name) ? "#ffb74d" : (isData(name) ? "#66bb6a" : "#4dd0e1");
   const radius = d => 6 + Math.sqrt(Math.max(d.loc, 1)) / 2;
 
   const nodes = metrics.map(m => ({ ...m, id: m.module }));
   const links = edges.map(e => ({ ...e }));
 
+  // marker-end="url(#arrow)" resolves against the document URL; make the ID
+  // unique per render so it never collides with a stale marker after re-render.
+  const arrowId = `arrow-${Math.random().toString(36).slice(2, 9)}`;
   svg.append("defs").append("marker")
-    .attr("id", "arrow").attr("viewBox", "0 -5 10 10").attr("refX", 18)
-    .attr("refY", 0).attr("markerWidth", 8).attr("markerHeight", 8)
-    .attr("orient", "auto").append("path").attr("d", "M0,-5L10,0L0,5")
-    .attr("fill", "#9aa0a6");
+    .attr("id", arrowId).attr("viewBox", "0 -5 10 10").attr("refX", 16)
+    .attr("refY", 0).attr("markerWidth", 12).attr("markerHeight", 12)
+    .attr("orient", "auto").attr("markerUnits", "userSpaceOnUse")
+    .append("path").attr("d", "M0,-5L10,0L0,5").attr("fill", "#9aa0a6");
+
+  // All scene content goes in `root` so d3.zoom can pan/scale it.
+  const root = svg.append("g").attr("class", "graph-root");
+  svg.call(d3.zoom().scaleExtent([0.25, 4])
+    .on("zoom", (e) => root.attr("transform", e.transform)));
 
   const sim = d3.forceSimulation(nodes)
     .force("link", d3.forceLink(links).id(d => d.id).distance(d => 70 + (d.weight || 1) * 4))
@@ -510,12 +532,12 @@ function renderGraph(metrics, edges) {
     .force("center", d3.forceCenter(W / 2, H / 2))
     .force("collide", d3.forceCollide().radius(d => radius(d) + 6));
 
-  const link = svg.append("g").selectAll("line").data(links).join("line")
+  const link = root.append("g").selectAll("line").data(links).join("line")
     .attr("class", "link").attr("stroke", "#9aa0a6")
     .attr("stroke-width", d => Math.max(1, Math.sqrt(d.weight)))
-    .attr("marker-end", "url(#arrow)");
+    .attr("marker-end", `url(#${arrowId})`);
 
-  const node = svg.append("g").selectAll("g").data(nodes).join("g")
+  const node = root.append("g").selectAll("g").data(nodes).join("g")
     .attr("class", "node")
     .call(d3.drag()
       .on("start", (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
@@ -524,7 +546,7 @@ function renderGraph(metrics, edges) {
 
   node.append("circle").attr("r", radius).attr("fill", d => colorOf(d.module));
   node.append("text").attr("dy", d => -radius(d) - 4).attr("text-anchor", "middle")
-    .text(d => d.module.replace(/^routers\./, ""));
+    .text(d => stripPrefix(d.module).replace(/^routers\./, ""));
 
   const info = document.getElementById("graph-info");
   let active = null;

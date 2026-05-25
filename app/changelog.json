@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.6",
+    "date": "2026-05-25",
+    "changes": [
+      {"type": "feature", "text": "Module dependency graph: added d3-zoom pan/wheel-zoom so crowded scans (17+ modules) can be navigated. Larger arrow markers (12x12, userSpaceOnUse) make direction visible at any link weight. Marker IDs now per-render so they don't collide across snapshot navigations."},
+      {"type": "feature", "text": "Graph labels strip the longest shared dotted prefix client-side (e.g. 'app.routers.foo' → 'routers.foo' when every module starts with 'app.'), and the package-color rules now match dotted paths (.routers., .database, .scanner, .analyzer)."},
+      {"type": "fix", "text": "build_orm_mermaid now finds the database module by leaf-name suffix instead of exact match, so scans without sub_path (modules named 'app.database') get a real class diagram instead of 'NoDatabaseModule'. Requires a re-scan."},
+      {"type": "fix", "text": "build_layers_mermaid: detects main / database / routers.* by leaf-name suffix and strips the shared common prefix from non-ambiguous labels. Drops main/database/routers subgraphs when the underlying modules aren't present. Requires a re-scan."}
+    ]
+  },
+  {
     "version": "0.1.5",
     "date": "2026-05-25",
     "changes": [
