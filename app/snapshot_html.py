@@ -39,29 +39,47 @@ def build_orm_mermaid(modules: dict[str, dict]) -> str:
 
 
 def build_layers_mermaid(modules: dict[str, dict]) -> str:
+    # Anything that isn't main / database / a routers.* / a bare package
+    # marker counts as a service. Beats hardcoding service names per repo.
+    services = sorted(
+        m for m, info in modules.items()
+        if m not in {"main", "database"}
+        and not m.startswith("routers.")
+        and info.get("loc", 0) > 0
+    )
+    has_routers = any(m.startswith("routers.") for m in modules)
+
     lines = [
         "flowchart TB",
         "  subgraph entry[Entry]",
         "    main",
         "  end",
-        "  subgraph routers[HTTP routers]",
     ]
-    for m in sorted(modules):
-        if m.startswith("routers."):
-            lines.append(f"    {m.replace('.', '_')}[\"{m.split('.')[-1]}\"]")
-    lines.append("  end")
-    lines.append("  subgraph services[Services]")
-    for m in ["scheduler", "scanner", "analyzer"]:
-        if m in modules:
-            lines.append(f"    {m}")
-    lines.append("  end")
-    lines.append("  subgraph data[Data]")
+    if has_routers:
+        lines.append("  subgraph routers[HTTP routers]")
+        for m in sorted(modules):
+            if m.startswith("routers."):
+                lines.append(f"    {m.replace('.', '_')}[\"{m.split('.')[-1]}\"]")
+        lines.append("  end")
+    if services:
+        lines.append("  subgraph services[Services]")
+        for m in services:
+            lines.append(f"    {m.replace('.', '_')}[\"{m}\"]")
+        lines.append("  end")
     if "database" in modules:
+        lines.append("  subgraph data[Data]")
         lines.append("    database")
-    lines.append("  end")
-    lines.append("  entry --> routers")
-    lines.append("  entry --> services")
-    lines.append("  routers --> services")
-    lines.append("  routers --> data")
-    lines.append("  services --> data")
+        lines.append("  end")
+
+    if has_routers:
+        lines.append("  entry --> routers")
+    if services:
+        lines.append("  entry --> services")
+        if has_routers:
+            lines.append("  routers --> services")
+    if "database" in modules:
+        if has_routers:
+            lines.append("  routers --> data")
+        if services:
+            lines.append("  services --> data")
     return "\n".join(lines)

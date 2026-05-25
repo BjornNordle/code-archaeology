@@ -403,20 +403,39 @@ async function initCommitPage() {
 
   renderMetricsTable(data.metrics);
   renderGraph(data.metrics, data.edges);
+  renderMatrix(data.metrics, data.edges);
+  await renderMermaid(data.mermaid_layers, data.mermaid_classes);
+}
 
-  document.getElementById("mermaid-classes").textContent = data.mermaid_classes || "";
-  document.getElementById("mermaid-layers").textContent = data.mermaid_layers || "";
-  if (window.mermaid) {
-    mermaid.initialize({
-      startOnLoad: false, theme: "dark",
-      themeVariables: {
-        darkMode: true, background: "#232732", primaryColor: "#1a1d24",
-        primaryBorderColor: "#4dd0e1", primaryTextColor: "#e8eaed",
-        lineColor: "#9aa0a6", secondaryColor: "#2c313c",
-      },
-    });
-    await mermaid.run({ querySelector: "pre.mermaid" });
-  }
+async function renderMermaid(layersSrc, classesSrc) {
+  // Use mermaid.render() rather than mermaid.run() — the latter races with
+  // mermaid's own auto-init on window-load, which marks our empty containers
+  // as data-processed="true" before we've filled them in.
+  if (!window.mermaid) return;
+  mermaid.initialize({
+    startOnLoad: false, theme: "dark",
+    themeVariables: {
+      darkMode: true, background: "#232732", primaryColor: "#1a1d24",
+      primaryBorderColor: "#4dd0e1", primaryTextColor: "#e8eaed",
+      lineColor: "#9aa0a6", secondaryColor: "#2c313c",
+    },
+  });
+  const into = async (hostId, src, svgId) => {
+    const host = document.getElementById(hostId);
+    if (!host) return;
+    if (!src) { host.textContent = ""; return; }
+    try {
+      const { svg, bindFunctions } = await mermaid.render(svgId, src);
+      host.innerHTML = svg;
+      if (bindFunctions) bindFunctions(host);
+    } catch (e) {
+      host.innerHTML = `<pre class="mermaid-error">${escapeHtml(src)}</pre>`;
+    }
+  };
+  await Promise.all([
+    into("mermaid-layers", layersSrc, "mermaid-svg-layers"),
+    into("mermaid-classes", classesSrc, "mermaid-svg-classes"),
+  ]);
 }
 
 function computeTotals(metrics) {
@@ -543,6 +562,54 @@ function renderGraph(metrics, edges) {
     link.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
         .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
     node.attr("transform", d => `translate(${d.x},${d.y})`);
+  });
+}
+
+function renderMatrix(metrics, edges) {
+  const svg = d3.select("#matrix");
+  svg.selectAll("*").remove();
+  if (!metrics.length) return;
+
+  const mods = metrics.map(m => m.module).sort();
+  const cell = 22, pad = 130;
+  const W = pad + mods.length * cell + 16;
+  const H = pad + mods.length * cell + 16;
+  svg.attr("viewBox", [0, 0, W, H]).style("width", "100%")
+     .style("max-width", `${W}px`).style("height", "auto");
+
+  const lookup = {};
+  edges.forEach(e => { lookup[`${e.source}→${e.target}`] = e.weight; });
+  const maxW = Math.max(1, ...edges.map(e => e.weight || 0));
+  const colorScale = d3.scaleSequential(d3.interpolateCubehelix("#1a1d24", "#4dd0e1"))
+    .domain([0, maxW]);
+
+  mods.forEach((m, i) => {
+    svg.append("text").attr("class", "label").attr("x", pad - 6)
+       .attr("y", pad + i * cell + cell * 0.7).attr("text-anchor", "end")
+       .style("font-size", "11px").style("fill", "var(--text)").text(m);
+    svg.append("text").attr("class", "label")
+       .attr("x", pad + i * cell + cell * 0.5).attr("y", pad - 6)
+       .attr("text-anchor", "start")
+       .attr("transform", `rotate(-45 ${pad + i * cell + cell * 0.5} ${pad - 6})`)
+       .style("font-size", "11px").style("fill", "var(--text)").text(m);
+  });
+
+  mods.forEach((src, i) => {
+    mods.forEach((dst, j) => {
+      const w = lookup[`${src}→${dst}`] || 0;
+      const rect = svg.append("rect").attr("class", "cell")
+        .attr("x", pad + j * cell).attr("y", pad + i * cell)
+        .attr("width", cell - 1).attr("height", cell - 1)
+        .attr("stroke", "var(--bg)").attr("stroke-width", 1)
+        .attr("fill", src === dst ? "#0f1115" : (w > 0 ? colorScale(w) : "#1a1d24"));
+      if (w > 0) {
+        rect.append("title").text(`${src} imports ${dst}: ${w} name(s)`);
+        svg.append("text").attr("x", pad + j * cell + cell / 2)
+           .attr("y", pad + i * cell + cell * 0.7).attr("text-anchor", "middle")
+           .style("font-size", "10px").style("pointer-events", "none")
+           .style("fill", w > maxW * 0.5 ? "#0f1115" : "#e8eaed").text(w);
+      }
+    });
   });
 }
 

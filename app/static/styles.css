@@ -175,7 +175,15 @@ dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top
   border-radius: 2px; vertical-align: middle; margin-right: 6px;
 }
 
-pre.mermaid {
+.mermaid-host {
   background: var(--panel-2); padding: 16px; border-radius: 6px;
   overflow-x: auto;
 }
+.mermaid-host svg { max-width: 100%; height: auto; }
+.mermaid-error {
+  color: var(--red); white-space: pre-wrap; font-family: ui-monospace, monospace;
+  font-size: 12px; margin: 0;
+}
+
+#matrix { display: block; }
+#matrix text { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

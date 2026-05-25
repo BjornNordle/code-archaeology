@@ -1,5 +1,14 @@
 [
   {
+    "version": "0.1.5",
+    "date": "2026-05-25",
+    "changes": [
+      {"type": "fix", "text": "Per-commit snapshot: architectural-layers and ORM class diagrams rendered as plain text because mermaid v10 auto-runs on window-load with startOnLoad:true, marking the still-empty pre.mermaid blocks as data-processed before app.js could fill them. Switched to mermaid.render() into div.mermaid-host containers, which bypasses the auto-init race entirely."},
+      {"type": "feature", "text": "Per-commit snapshot: restored the coupling-matrix heat-map next to the metrics table (was in the original analyze.py one-shot HTML but missed in the live-app refactor). Cell intensity = number of names module A imports from module B."},
+      {"type": "fix", "text": "build_layers_mermaid: services subgraph now dynamically discovered from the analyzed modules instead of hardcoded to scheduler/scanner/analyzer — so layered diagrams look right for any scanned repo, not just code-archaeology itself. Requires a re-scan to take effect on existing commits."}
+    ]
+  },
+  {
     "version": "0.1.4",
     "date": "2026-05-24",
     "changes": [

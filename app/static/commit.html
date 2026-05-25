@@ -33,6 +33,7 @@
   </div>
 </section>
 
+<div class="grid">
 <section>
   <h2>Coupling &amp; cohesion metrics</h2>
   <div class="sub">
@@ -55,13 +56,20 @@
 </section>
 
 <section>
+  <h2>Coupling matrix</h2>
+  <div class="sub">Rows import columns. Cell intensity = number of imported names. Diagonals are self-references (always blank).</div>
+  <svg id="matrix"></svg>
+</section>
+</div>
+
+<section>
   <h2>Architectural layers</h2>
-  <pre class="mermaid" id="mermaid-layers"></pre>
+  <div class="mermaid-host" id="mermaid-layers"></div>
 </section>
 
 <section>
   <h2>ORM class diagram</h2>
-  <pre class="mermaid" id="mermaid-classes"></pre>
+  <div class="mermaid-host" id="mermaid-classes"></div>
 </section>
 </main>
 
