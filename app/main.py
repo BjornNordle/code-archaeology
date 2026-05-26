@@ -15,6 +15,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope
+
+
+class NoCacheStaticFiles(StaticFiles):
+    """StaticFiles that sets Cache-Control: no-cache on every response.
+
+    The browser still caches the file but revalidates via ETag on every load,
+    so a 304 is returned when unchanged and fresh bytes are delivered the
+    moment we redeploy — no more "users stuck on old JS/CSS until hard refresh".
+    """
+    async def get_response(self, path: str, scope: Scope):
+        response = await super().get_response(path, scope)
+        if response.status_code < 400:
+            response.headers["Cache-Control"] = "no-cache"
+        return response
 
 from database import init_db
 from routers import repos as repos_router
@@ -65,7 +80,7 @@ def health():
 # ── Static SPA ────────────────────────────────────────────────────────────────
 STATIC_DIR = APP_DIR / "static"
 if STATIC_DIR.is_dir():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    app.mount("/static", NoCacheStaticFiles(directory=str(STATIC_DIR)), name="static")
 
     @app.get("/")
     def index():
