@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.1.7",
+    "date": "2026-05-26",
+    "changes": [
+      {"type": "fix", "text": "Analyzer: when a repo is scanned without sub_path (modules named 'app.foo' / 'docs.bar.baz'), `from foo import X` in code inside that package failed to resolve because ast.ImportFrom.module is just 'foo' and the internal set only contained 'app.foo'. resolve_import now falls back to a dotted-leaf suffix match — bare 'database' resolves to 'app.database' when there's exactly one such match (or the shortest one on ties). Without this fix every coupling metric was zero. Requires a re-scan."}
+    ]
+  },
+  {
     "version": "0.1.6",
     "date": "2026-05-25",
     "changes": [

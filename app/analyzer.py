@@ -53,11 +53,26 @@ def build_module_index(root: Path) -> dict[str, Path]:
 def resolve_import(target: str, internal: set[str]) -> Optional[str]:
     if target in internal:
         return target
+
+    # Walk back through dotted prefixes — handles "from x.y.z import foo"
+    # when only "x.y" is a real module (foo is a symbol inside it).
     parts = target.split(".")
-    for i in range(len(parts), 0, -1):
+    for i in range(len(parts) - 1, 0, -1):
         cand = ".".join(parts[:i])
         if cand in internal:
             return cand
+
+    # Suffix match — when the scan was rooted above the package (no
+    # sub_path), code inside the package still says `from database import X`
+    # and ast.ImportFrom.module is just "database", but internal contains
+    # "app.database". Match by dotted leaf so the edge isn't lost.
+    candidates = [m for m in internal if m.endswith("." + target)]
+    if len(candidates) == 1:
+        return candidates[0]
+    if candidates:
+        # Multiple matches: pick the shortest (most likely the project root
+        # package) and tie-break alphabetically for stability.
+        return min(candidates, key=lambda m: (len(m), m))
     return None
 
 
