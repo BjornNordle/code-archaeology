@@ -11,6 +11,288 @@ const api = (path, opts) => fetch(path, opts).then(async (r) => {
   return r.status === 204 ? null : r.json();
 });
 
+// ── In-context help system ──────────────────────────────────────────────────
+// Two patterns:
+//   1. helpIcon("key")  → a small (?) next to a label; click opens a popover
+//      with the matching HELP[key] definition. Used for simple units.
+//   2. <details class="explainer">  → expandable "What is this?" panel under
+//      a section header. Native HTML, no JS needed. Used for bigger concepts.
+//
+// Every label, column header, dialog field, and section visualised in the UI
+// is registered here so users never see an undefined acronym or metric.
+
+const HELP = {
+  // ── Simple units (popover) ────────────────────────────────────────────────
+  loc: {
+    title: "LOC — Lines of Code",
+    body: `<p>Raw line count of the module's source file (<code>len(src.splitlines())</code>) — blanks and comments included.</p>
+           <p>It's a size proxy, not a quality signal. Useful for spotting growth, not for ranking modules.</p>`,
+  },
+  classes: {
+    title: "Classes",
+    body: `<p>Top-level <code>class</code> definitions in the module. Nested classes (declared inside another class or function) aren't counted.</p>`,
+  },
+  functions: {
+    title: "Functions",
+    body: `<p>Top-level <code>def</code> / <code>async def</code> in the module. Methods defined inside classes are <em>not</em> counted here — they live under their class.</p>`,
+  },
+  modules: {
+    title: "Modules",
+    body: `<p>Each <code>.py</code> file (or directory with <code>__init__.py</code>) is one module. Only Python files inside the repo's <code>sub_path</code> are AST-analyzed.</p>
+           <p>Files in other languages (.ts, .js, .go, …) are counted by line as a single <code>generic_loc</code> bucket — they don't appear as nodes in the graph yet.</p>`,
+  },
+  internal_imports: {
+    title: "Internal imports",
+    body: `<p>Distinct (importer → imported) edges between modules inside the analyzed sub-path. Each pair is counted once, regardless of how many <code>import</code> statements connect them.</p>
+           <p>External imports (stdlib, third-party packages) are excluded — they don't appear in the graph.</p>`,
+  },
+  fan_in: {
+    title: "Ca — Afferent coupling",
+    body: `<p>Number of <em>distinct internal modules</em> that import this one (incoming dependencies).</p>
+           <p>High Ca = many things depend on this module. Changing it has wide reach.</p>`,
+  },
+  fan_out: {
+    title: "Ce — Efferent coupling",
+    body: `<p>Number of <em>distinct internal modules</em> this one imports (outgoing dependencies).</p>
+           <p>High Ce = this module knows a lot about its world. It's exposed to changes in many others.</p>`,
+  },
+  instability_col: {
+    title: "I — Instability",
+    body: `<p>Ratio between 0 and 1: <span class="formula">I = Ce / (Ce + Ca)</span></p>
+           <p><strong>I = 0</strong> stable: nothing depends on others, many depend on it.<br>
+              <strong>I = 1</strong> unstable: depends on many, nothing depends on it.</p>
+           <p>See the "What is instability?" panel above the table for the full picture.</p>`,
+  },
+  lcom4_col: {
+    title: "LCOM4 — Lack of Cohesion of Methods (v4)",
+    body: `<p>Average over the module's top-level classes. <strong>Lower is better</strong>: 1.0 means each class is one connected cluster of methods.</p>
+           <p>A class with LCOM4 = 3 is really three classes glued together. See the "What is cohesion (LCOM4)?" panel for details.</p>
+           <p><code>—</code> means the module has no classes (so cohesion isn't meaningful).</p>`,
+  },
+  language: {
+    title: "Language",
+    body: `<p>Source language detected by file extension. Only <code>python</code> modules get full AST analysis; everything else is rolled into a single LOC bucket.</p>`,
+  },
+  commits_scanned: {
+    title: "Commits scanned",
+    body: `<p>Total git commits the analyzer has processed and stored metrics for. Each was checked out into a temporary worktree, analyzed, and persisted — so this number is also "how much SQLite data exists for this repo".</p>`,
+  },
+  modules_at_head: {
+    title: "Modules at HEAD",
+    body: `<p>Number of Python modules present at the most recently scanned commit. Same definition as the column header — see the "Modules" help.</p>`,
+  },
+  loc_at_head: {
+    title: "LOC at HEAD",
+    body: `<p>Total lines of code (Python modules only, raw line count) at the most recently scanned commit.</p>`,
+  },
+  classes_at_head: {
+    title: "Classes at HEAD",
+    body: `<p>Total top-level class count across all Python modules at the most recently scanned commit.</p>`,
+  },
+  avg_instability_stat: {
+    title: "Average instability",
+    body: `<p>Arithmetic mean of <code>instability</code> across all modules at the latest scanned commit. A drift upward over time means the codebase is becoming more leaf-like (more glue, fewer stable core modules).</p>`,
+  },
+  avg_lcom4_stat: {
+    title: "Average LCOM4",
+    body: `<p>Arithmetic mean of <code>avg_lcom4</code> across modules that have at least one class. Modules with no classes are skipped.</p>
+           <p>Drift upward = classes are getting more split / less cohesive on average.</p>`,
+  },
+  // ── Snapshot stats (commit page) ──────────────────────────────────────────
+  snap_modules: {
+    title: "Modules",
+    body: `<p>Python modules analyzed at this commit. See the "Modules" definition for what counts.</p>`,
+  },
+  snap_loc: {
+    title: "LOC",
+    body: `<p>Sum of every analyzed module's <code>loc</code> at this commit.</p>`,
+  },
+  snap_classes: {
+    title: "Classes",
+    body: `<p>Total top-level classes at this commit (sum across all modules).</p>`,
+  },
+  snap_functions: {
+    title: "Functions",
+    body: `<p>Total top-level functions at this commit (sum across all modules). Methods inside classes are not in this count.</p>`,
+  },
+  snap_edges: {
+    title: "Internal imports",
+    body: `<p>Distinct (importer → imported) module pairs at this commit. Same as the line count in the coupling matrix.</p>`,
+  },
+  // ── Hotspots columns ──────────────────────────────────────────────────────
+  hot_loc_now: {
+    title: "LOC now",
+    body: `<p>The module's line count at the latest commit in the window.</p>`,
+  },
+  hot_delta_loc: {
+    title: "ΔLOC",
+    body: `<p>Change in LOC from the window's <em>oldest</em> commit to its newest. Positive = grew (shown red); negative = shrunk (shown green).</p>`,
+  },
+  hot_i_now: {
+    title: "I now",
+    body: `<p>Instability at the latest commit in the window. Color: green = stable (&lt; 0.34), orange = mid, red = unstable (≥ 0.67).</p>`,
+  },
+  hot_delta_i: {
+    title: "ΔI",
+    body: `<p>Change in instability across the window. Positive (red) = the module became more leaf-like / less core. Negative (green) = it became more stable.</p>`,
+  },
+  hot_lcom4_now: {
+    title: "LCOM4 now",
+    body: `<p>Average LCOM4 across the module's classes at the latest commit. <code>—</code> means no classes.</p>`,
+  },
+  hot_delta_lcom4: {
+    title: "ΔLCOM4",
+    body: `<p>Change in cohesion across the window. Positive (red) = the module's classes became <em>less</em> cohesive (more disconnected clusters). Negative (green) = more cohesive.</p>`,
+  },
+  hot_window: {
+    title: "Window",
+    body: `<p>How many of the most recent commits to compare across. The hotspots row shows the delta from the <em>oldest</em> commit in the window to the latest.</p>
+           <p>Small window (5–20) = recent volatility. Large window (100+) = long-term trends.</p>`,
+  },
+  is_new: {
+    title: "New",
+    body: `<p>Shown when a module exists at the window's latest commit but didn't exist at the window's oldest — i.e. it was introduced inside the window.</p>`,
+  },
+  // ── Scan filter options ───────────────────────────────────────────────────
+  scan_filter: {
+    title: "Commit filter",
+    body: `<p>Restricts which commits to scan. The walk is always first-parent on the default branch, oldest → newest.</p>
+           <ul>
+             <li><code>all</code> — every commit (default)</li>
+             <li><code>last_n</code> — the most recent N commits</li>
+             <li><code>since</code> — author date on or after a given <code>YYYY-MM-DD</code></li>
+             <li><code>range</code> — from one SHA-prefix up to another, inclusive both ends</li>
+             <li><code>sha_list</code> — only the explicit full SHAs you list</li>
+           </ul>`,
+  },
+  scan_n: {
+    title: "N",
+    body: `<p>How many of the most recent commits to scan, counted from HEAD backwards.</p>`,
+  },
+  scan_since: {
+    title: "Since date",
+    body: `<p>ISO date <code>YYYY-MM-DD</code>. Commits with author date on or after this date are scanned. Earlier commits are skipped.</p>`,
+  },
+  scan_from: {
+    title: "From SHA",
+    body: `<p>Where the range starts. Walk begins at the first commit whose SHA starts with this prefix (oldest-first order). 7+ chars recommended to avoid ambiguity.</p>`,
+  },
+  scan_to: {
+    title: "To SHA",
+    body: `<p>Where the range stops. Walk ends after the commit whose SHA starts with this prefix — inclusive.</p>`,
+  },
+  scan_shas: {
+    title: "Specific SHAs",
+    body: `<p>Comma-separated <em>full</em> SHAs (not prefixes). Only commits matching exactly are scanned. Useful for re-scanning a handful of bad commits after fixing the analyzer.</p>`,
+  },
+  // ── Add-repo dialog fields ────────────────────────────────────────────────
+  repo_name: {
+    title: "Name",
+    body: `<p>Human-readable label for this repo in the UI. Doesn't need to match the git URL.</p>`,
+  },
+  repo_url: {
+    title: "Remote URL",
+    body: `<p>HTTPS or SSH git URL. For private <code>github.com</code> repos, the scanner injects <code>$GITHUB_TOKEN</code> as <code>x-access-token</code> at clone/fetch time.</p>
+           <p>Mutually exclusive with Local path — provide one or the other.</p>`,
+  },
+  repo_local: {
+    title: "Local path",
+    body: `<p>Absolute path to an already-cloned git repo on disk. Useful for scanning checkouts you control without re-cloning.</p>
+           <p>In Docker, this path is inside the container — mount your host repo into <code>/repos/...</code> (see <code>docker-compose.yml</code>).</p>`,
+  },
+  repo_sub: {
+    title: "Sub-path",
+    body: `<p>Subdirectory inside the repo to analyze (e.g. <code>app</code> if your code lives under <code>app/</code>). Module names are rooted here — a file at <code>app/foo.py</code> becomes the module <code>foo</code>, not <code>app.foo</code>.</p>
+           <p>Leave blank to analyze the whole repo. Useful for monorepos where only one directory is the project.</p>`,
+  },
+  repo_branch: {
+    title: "Default branch",
+    body: `<p>Branch the scanner walks when iterating commits. Usually <code>main</code> or <code>master</code>. The walk is <code>git log --first-parent --reverse</code>, so merge commits are followed via their first parent only.</p>`,
+  },
+  // ── Tracked repos table ───────────────────────────────────────────────────
+  repo_table_source: {
+    title: "Source",
+    body: `<p>Either the remote URL (for cloned repos) or the local path (for repos already on disk). Whichever was provided when the repo was added.</p>`,
+  },
+  repo_table_last_sha: {
+    title: "Last SHA",
+    body: `<p>Short SHA of the most recently scanned commit for this repo. <code>—</code> means no successful scan yet.</p>`,
+  },
+  // ── Scanned commits table ─────────────────────────────────────────────────
+  commit_err_pill: {
+    title: "Scan error",
+    body: `<p>The analyzer crashed on this commit (most often a Python syntax error during AST parsing of one of the files at that revision). The commit is still listed but has no metrics — open it to see the error detail.</p>`,
+  },
+};
+
+function helpIcon(key) {
+  if (!HELP[key]) console.warn("missing HELP key:", key);
+  return `<span class="help-icon" data-help-key="${key}" tabindex="0" role="button" aria-label="What is this?">?</span>`;
+}
+
+function closeHelpPopover() {
+  document.getElementById("help-popover")?.remove();
+}
+
+function showHelpPopover(anchor, key) {
+  const def = HELP[key];
+  if (!def) return;
+  closeHelpPopover();
+  const pop = document.createElement("div");
+  pop.className = "help-popover";
+  pop.id = "help-popover";
+  pop.dataset.forKey = key;
+  pop.innerHTML = `<h4>${def.title}</h4>${def.body}`;
+  // If the trigger is inside an open <dialog>, attach the popover there so it
+  // renders in the same top-layer stacking context (dialogs sit above body).
+  const dlg = anchor.closest("dialog[open]");
+  const host = dlg || document.body;
+  host.appendChild(pop);
+  const ar = anchor.getBoundingClientRect();
+  const pr = pop.getBoundingClientRect();
+  const margin = 12;
+  // Absolute-positioned children of <dialog> use the dialog's content box as
+  // their containing block. Subtract the dialog's viewport offset so the
+  // popover lands at the right place visually.
+  const hostR = dlg ? dlg.getBoundingClientRect() : { top: -window.scrollY, left: -window.scrollX };
+  let top = ar.bottom - hostR.top + 6;
+  if (ar.bottom + pr.height + margin > window.innerHeight && ar.top - pr.height - margin > 0) {
+    top = ar.top - hostR.top - pr.height - 6;
+  }
+  let left = ar.left - hostR.left;
+  // Keep within viewport
+  if (ar.left + pr.width > window.innerWidth - margin) {
+    left = window.innerWidth - hostR.left - pr.width - margin;
+  }
+  if (ar.left < margin) left = margin - hostR.left;
+  pop.style.top = top + "px";
+  pop.style.left = left + "px";
+}
+
+// Capture phase so we run BEFORE bubbling-phase handlers (e.g. table-header
+// sort onclick). Without this, clicking a help-icon in a sortable <th> would
+// also re-sort the column.
+document.addEventListener("click", (e) => {
+  const trigger = e.target.closest(".help-icon");
+  if (trigger) {
+    e.preventDefault();
+    e.stopPropagation();
+    const existing = document.getElementById("help-popover");
+    const wasFor = existing && existing.dataset.forKey === trigger.dataset.helpKey;
+    closeHelpPopover();
+    if (!wasFor) showHelpPopover(trigger, trigger.dataset.helpKey);
+    return;
+  }
+  if (!e.target.closest(".help-popover")) closeHelpPopover();
+}, true);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeHelpPopover();
+  if ((e.key === "Enter" || e.key === " ") && document.activeElement?.classList.contains("help-icon")) {
+    e.preventDefault();
+    document.activeElement.click();
+  }
+});
+
 function toast(msg, kind = "") {
   const el = document.createElement("div");
   el.className = "toast " + kind;
@@ -63,7 +345,12 @@ async function renderRepos() {
   host.innerHTML = `
     <table>
       <thead><tr>
-        <th>name</th><th>source</th><th>branch</th><th>last sha</th><th>added</th><th></th>
+        <th>name</th>
+        <th>source ${helpIcon("repo_table_source")}</th>
+        <th>branch ${helpIcon("repo_branch")}</th>
+        <th>last sha ${helpIcon("repo_table_last_sha")}</th>
+        <th>added</th>
+        <th></th>
       </tr></thead>
       <tbody>${repos.map(r => `
         <tr>
@@ -152,12 +439,12 @@ async function loadRepoMeta() {
   }
   const l = stats.latest;
   summary.innerHTML = `
-    <div class="stat"><span class="num">${stats.commits_scanned}</span><span class="lbl">commits scanned</span></div>
-    <div class="stat"><span class="num">${l.modules}</span><span class="lbl">modules @ HEAD</span></div>
-    <div class="stat"><span class="num">${l.loc.toLocaleString()}</span><span class="lbl">LOC @ HEAD</span></div>
-    <div class="stat"><span class="num">${l.classes}</span><span class="lbl">classes @ HEAD</span></div>
-    <div class="stat"><span class="num">${(l.avg_instability ?? 0).toFixed(2)}</span><span class="lbl">avg instability</span></div>
-    <div class="stat"><span class="num">${l.avg_lcom4 != null ? l.avg_lcom4.toFixed(2) : "—"}</span><span class="lbl">avg LCOM4</span></div>`;
+    <div class="stat"><span class="num">${stats.commits_scanned}</span><span class="lbl">commits scanned ${helpIcon("commits_scanned")}</span></div>
+    <div class="stat"><span class="num">${l.modules}</span><span class="lbl">modules @ HEAD ${helpIcon("modules_at_head")}</span></div>
+    <div class="stat"><span class="num">${l.loc.toLocaleString()}</span><span class="lbl">LOC @ HEAD ${helpIcon("loc_at_head")}</span></div>
+    <div class="stat"><span class="num">${l.classes}</span><span class="lbl">classes @ HEAD ${helpIcon("classes_at_head")}</span></div>
+    <div class="stat"><span class="num">${(l.avg_instability ?? 0).toFixed(2)}</span><span class="lbl">avg instability ${helpIcon("avg_instability_stat")}</span></div>
+    <div class="stat"><span class="num">${l.avg_lcom4 != null ? l.avg_lcom4.toFixed(2) : "—"}</span><span class="lbl">avg LCOM4 ${helpIcon("avg_lcom4_stat")}</span></div>`;
 }
 
 async function loadTimeline() {
@@ -264,15 +551,17 @@ async function loadCommits() {
   }
   host.innerHTML = `
     <table>
-      <thead><tr><th>sha</th><th>message</th><th>author</th><th>committed</th><th></th></tr></thead>
+      <thead><tr>
+        <th>sha</th><th>message</th><th>author</th><th>committed</th>
+        <th>${helpIcon("commit_err_pill")}</th>
+      </tr></thead>
       <tbody>${commits.map(c => `
         <tr>
-          <td class="mono"><a href="/repo/${REPO_ID}/commit/${c.sha}">${c.short_sha}</a>
-            ${c.scan_error ? '<span class="pill unstable">err</span>' : ""}</td>
+          <td class="mono"><a href="/repo/${REPO_ID}/commit/${c.sha}">${c.short_sha}</a></td>
           <td>${escapeHtml(c.message || "")}</td>
           <td class="muted">${escapeHtml(c.author || "")}</td>
           <td class="muted">${fmtDate(c.committed_at)}</td>
-          <td></td>
+          <td>${c.scan_error ? '<span class="pill unstable">err</span>' : ""}</td>
         </tr>`).join("")}
       </tbody>
     </table>`;
@@ -294,7 +583,16 @@ async function loadHotspots() {
   };
   host.innerHTML = `
     <table>
-      <thead><tr><th>module</th><th>LOC now</th><th>ΔLOC</th><th>I now</th><th>ΔI</th><th>LCOM4 now</th><th>ΔLCOM4</th><th></th></tr></thead>
+      <thead><tr>
+        <th>module</th>
+        <th>LOC now ${helpIcon("hot_loc_now")}</th>
+        <th>ΔLOC ${helpIcon("hot_delta_loc")}</th>
+        <th>I now ${helpIcon("hot_i_now")}</th>
+        <th>ΔI ${helpIcon("hot_delta_i")}</th>
+        <th>LCOM4 now ${helpIcon("hot_lcom4_now")}</th>
+        <th>ΔLCOM4 ${helpIcon("hot_delta_lcom4")}</th>
+        <th>${helpIcon("is_new")}</th>
+      </tr></thead>
       <tbody>${data.slice(0, 30).map(r => `
         <tr>
           <td class="mono">${escapeHtml(r.module)}</td>
@@ -319,14 +617,14 @@ function openScanDialog() {
   const renderArgs = () => {
     switch (kind.value) {
       case "last_n":
-        args.innerHTML = `<label>N <input id="f-n" type="number" value="50" min="1"></label>`; break;
+        args.innerHTML = `<label>N ${helpIcon("scan_n")} <input id="f-n" type="number" value="50" min="1"></label>`; break;
       case "since":
-        args.innerHTML = `<label>Since (YYYY-MM-DD) <input id="f-since" placeholder="2026-01-01"></label>`; break;
+        args.innerHTML = `<label>Since (YYYY-MM-DD) ${helpIcon("scan_since")} <input id="f-since" placeholder="2026-01-01"></label>`; break;
       case "range":
-        args.innerHTML = `<label>From SHA <input id="f-from"></label>
-                          <label>To SHA <input id="f-to"></label>`; break;
+        args.innerHTML = `<label>From SHA ${helpIcon("scan_from")} <input id="f-from"></label>
+                          <label>To SHA ${helpIcon("scan_to")} <input id="f-to"></label>`; break;
       case "sha_list":
-        args.innerHTML = `<label>SHAs (comma-separated) <input id="f-shas"></label>`; break;
+        args.innerHTML = `<label>SHAs (comma-separated) ${helpIcon("scan_shas")} <input id="f-shas"></label>`; break;
       default: args.innerHTML = ""; break;
     }
   };
@@ -395,11 +693,11 @@ async function initCommitPage() {
 
   const totals = computeTotals(data.metrics);
   document.getElementById("snapshot-summary").innerHTML = `
-    <div class="stat"><span class="num">${totals.modules}</span><span class="lbl">modules</span></div>
-    <div class="stat"><span class="num">${totals.loc.toLocaleString()}</span><span class="lbl">LOC</span></div>
-    <div class="stat"><span class="num">${totals.classes}</span><span class="lbl">classes</span></div>
-    <div class="stat"><span class="num">${totals.functions}</span><span class="lbl">functions</span></div>
-    <div class="stat"><span class="num">${data.edges.length}</span><span class="lbl">internal imports</span></div>`;
+    <div class="stat"><span class="num">${totals.modules}</span><span class="lbl">modules ${helpIcon("snap_modules")}</span></div>
+    <div class="stat"><span class="num">${totals.loc.toLocaleString()}</span><span class="lbl">LOC ${helpIcon("snap_loc")}</span></div>
+    <div class="stat"><span class="num">${totals.classes}</span><span class="lbl">classes ${helpIcon("snap_classes")}</span></div>
+    <div class="stat"><span class="num">${totals.functions}</span><span class="lbl">functions ${helpIcon("snap_functions")}</span></div>
+    <div class="stat"><span class="num">${data.edges.length}</span><span class="lbl">internal imports ${helpIcon("snap_edges")}</span></div>`;
 
   renderMetricsTable(data.metrics);
   renderGraph(data.metrics, data.edges);

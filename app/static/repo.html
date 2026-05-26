@@ -33,6 +33,59 @@
 <section>
   <h2>Timeline</h2>
   <div class="sub">Aggregate metrics over every scanned commit. Click a point or drag the scrubber to inspect.</div>
+
+  <details class="explainer">
+    <summary>How to read these charts</summary>
+    <div class="explainer-body">
+      <p>Each chart plots one aggregate metric across every scanned commit, oldest (left) to newest (right). X-axis labels are the short SHA of each commit.</p>
+      <ul>
+        <li><strong>LOC</strong> — total raw line count across all Python modules. A size proxy; sudden jumps usually mark a refactor, a vendored dependency, or a generated-file commit.</li>
+        <li><strong>classes</strong> — total top-level classes across all modules at each commit.</li>
+        <li><strong>avg instability</strong> — mean of the per-module instability ratio (0–1). See the <em>Instability</em> panel below.</li>
+        <li><strong>avg LCOM4</strong> — mean of per-module cohesion across modules that have classes. Modules without classes are skipped. Gaps render where no commit had any classes. See the <em>Cohesion (LCOM4)</em> panel.</li>
+      </ul>
+      <p>Click any point to jump the scrubber to that commit, then use the <strong>Open architecture snapshot</strong> link to see the full module graph and per-module metrics at that revision.</p>
+    </div>
+  </details>
+
+  <details class="explainer">
+    <summary>What is instability?</summary>
+    <div class="explainer-body">
+      <p>A 0–1 ratio measuring how exposed-to-change a module is, from Robert C. Martin's stability metrics (1995).</p>
+      <p class="formula">I = Ce / (Ce + Ca)</p>
+      <p>Where <strong>Ce</strong> (efferent coupling) is how many internal modules this one imports, and <strong>Ca</strong> (afferent coupling) is how many internal modules import it. If both are zero, I defaults to 0.</p>
+      <h5>How to read it</h5>
+      <ul>
+        <li><strong>I = 0</strong> — maximally <span class="pill stable">stable</span>: many modules depend on this one, it depends on none. Hard to change without breaking the world. Typical of domain models and framework cores.</li>
+        <li><strong>I ≈ 0.5</strong> — <span class="pill mid">mid</span>: balanced incoming and outgoing dependencies.</li>
+        <li><strong>I = 1</strong> — maximally <span class="pill unstable">unstable</span>: depends on many, nothing depends on it. Cheap to change. Typical of UI glue, entry points, scripts.</li>
+      </ul>
+      <h5>What's healthy</h5>
+      <p>The Stable Dependencies Principle says <strong>depend in the direction of stability</strong>: stable modules shouldn't import unstable ones. A healthy codebase usually shows a mix — cores near 0, leaves near 1. The worrying case is a module with high Ca <em>and</em> high Ce: everyone depends on it <em>and</em> it depends on lots, making it a fragile bottleneck.</p>
+    </div>
+  </details>
+
+  <details class="explainer">
+    <summary>What is cohesion (LCOM4)?</summary>
+    <div class="explainer-body">
+      <p>LCOM4 — <em>Lack of Cohesion of Methods, version 4</em> — asks: is this class actually one thing, or several things bolted together?</p>
+      <h5>How it's computed, per class</h5>
+      <p>Treat each method as a node. Connect two methods with an edge if they reference the same instance attribute (e.g. both touch <code>self.config</code>). LCOM4 is the count of connected components in the resulting graph.</p>
+      <ul>
+        <li><strong>LCOM4 = 1</strong> — one cluster: every method shares some state with another. The class is one coherent thing.</li>
+        <li><strong>LCOM4 = N &gt; 1</strong> — N islands of methods that share no state. The class is really N classes glued together — a candidate for splitting.</li>
+        <li><strong>LCOM4 = 0</strong> — the class has no methods. Cohesion isn't meaningful, so it's reported as 0 and the module average excludes it implicitly via the "no classes → —" rule.</li>
+      </ul>
+      <p>At the <strong>module level</strong> (what the chart and table show), it's the arithmetic mean over the module's top-level classes. <code>—</code> means the module has no classes.</p>
+      <h5>Caveats with this implementation</h5>
+      <ul>
+        <li>Connections come from shared <code>self.X</code> attribute references. A method-to-method call like <code>self.bar()</code> adds <code>bar</code> to the caller's reference set, so it only connects to <code>bar</code> if some other method also references the name <code>bar</code>.</li>
+        <li>Only top-level classes are analyzed — nested classes are ignored.</li>
+        <li>Inherited attributes aren't tracked — only what's referenced directly via <code>self</code> in the class body.</li>
+      </ul>
+    </div>
+  </details>
+
   <div class="grid" style="margin-top: 16px;">
     <div class="chart-wrap"><canvas id="chart-loc"></canvas></div>
     <div class="chart-wrap"><canvas id="chart-classes"></canvas></div>
@@ -54,8 +107,24 @@
 
 <section>
   <h2>Hotspots — modules with worst-trending metrics</h2>
+  <details class="explainer">
+    <summary>What are hotspots?</summary>
+    <div class="explainer-body">
+      <p>Modules whose metrics moved the most across a window of recent commits. The window's <em>oldest</em> commit is compared to its newest (HEAD) — so window=20 compares HEAD against the commit 19 ahead of it.</p>
+      <h5>Columns</h5>
+      <ul>
+        <li><strong>LOC now / I now / LCOM4 now</strong> — the metric's current value at the latest commit.</li>
+        <li><strong>ΔLOC / ΔI / ΔLCOM4</strong> — change across the window. <span class="pill delta-pos">+positive</span> = grew (more code / more unstable / less cohesive). <span class="pill delta-neg">−negative</span> = shrank. <span class="pill delta-zero">0</span> = unchanged.</li>
+        <li><strong><span class="pill new">new</span></strong> — module didn't exist at the window's start. Deltas are computed against zero, which is why a brand-new module's ΔLOC equals its current LOC.</li>
+      </ul>
+      <h5>Sort order</h5>
+      <p>Rows are sorted by <code>(ΔLOC, ΔI)</code> descending — modules that grew most in lines and stability appear first. The top 30 are shown.</p>
+      <h5>Why it matters</h5>
+      <p>Hotspots concentrate risk. A module that's growing in LOC <em>and</em> losing cohesion <em>and</em> becoming more unstable is technical debt accumulating in real time — usually worth a refactor before it gets worse.</p>
+    </div>
+  </details>
   <div class="row" style="margin-bottom: 12px;">
-    <label class="sub">Window <input id="hot-window" type="number" value="20" min="2" max="500" style="width: 80px;"></label>
+    <label class="sub">Window <span class="help-icon" data-help-key="hot_window" tabindex="0" role="button" aria-label="What is this?">?</span> <input id="hot-window" type="number" value="20" min="2" max="500" style="width: 80px;"></label>
     <button id="hot-refresh">Recompute</button>
   </div>
   <div id="hotspots"></div>
@@ -63,13 +132,14 @@
 
 <section>
   <h2>Scanned commits</h2>
+  <div class="sub">Every commit the analyzer has processed. The <code>err</code> pill marks commits where the AST parser failed (typically a syntax error at that revision); they're listed but have no metrics.</div>
   <div id="commits"></div>
 </section>
 </main>
 
 <dialog id="scan-dialog">
   <h3>Scan commits</h3>
-  <label>Filter
+  <label>Filter <span class="help-icon" data-help-key="scan_filter" tabindex="0" role="button" aria-label="What is this?">?</span>
     <select id="f-kind">
       <option value="all" selected>All commits (default)</option>
       <option value="last_n">Last N commits</option>

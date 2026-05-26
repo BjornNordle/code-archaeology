@@ -22,6 +22,25 @@
 <section>
   <h2>Architecture at this commit</h2>
   <div class="sub">Force-directed module graph. Node size = LOC, color = package. Click to highlight.</div>
+  <details class="explainer">
+    <summary>How to read this graph</summary>
+    <div class="explainer-body">
+      <p>Every Python module is a node; every internal import is an arrow from importer to imported. External libraries (stdlib, third-party) aren't shown.</p>
+      <h5>Visual encoding</h5>
+      <ul>
+        <li><strong>Node size</strong> — <code>6 + sqrt(LOC)/2</code>, so a 10× larger module is ~3× bigger visually rather than 10× (avoids one giant blob dominating the layout).</li>
+        <li><strong>Node color</strong> — <span class="swatch-inline" style="background:#4dd0e1;"></span>app root, <span class="swatch-inline" style="background:#ffb74d;"></span>routers (anything with <code>routers.</code> in its dotted name), <span class="swatch-inline" style="background:#66bb6a;"></span>data layer (modules ending in <code>database</code>, <code>scanner</code>, or <code>analyzer</code>).</li>
+        <li><strong>Arrow thickness</strong> — <code>sqrt(weight)</code>, where weight = total distinct names imported between the two modules.</li>
+      </ul>
+      <h5>Interactions</h5>
+      <ul>
+        <li><strong>Click</strong> a node to highlight its incoming/outgoing edges and see the name lists below.</li>
+        <li><strong>Drag</strong> a node to pin it; the simulation continues around it.</li>
+        <li><strong>Wheel</strong> to zoom, drag empty space to pan (useful when there are 20+ modules).</li>
+      </ul>
+      <p>Labels strip the longest shared dotted prefix client-side: if every module starts with <code>app.</code>, that prefix is hidden so the names stay readable.</p>
+    </div>
+  </details>
   <div class="summary" id="snapshot-summary"></div>
   <svg id="graph"></svg>
   <div id="graph-info" class="module-info"></div>
@@ -39,17 +58,46 @@
   <div class="sub">
     <strong>Ca</strong> afferent · <strong>Ce</strong> efferent · <strong>I</strong> = Ce/(Ce+Ca) · <strong>LCOM4</strong> = method-cluster count (lower = more cohesive).
   </div>
+  <details class="explainer">
+    <summary>What is instability (I)?</summary>
+    <div class="explainer-body">
+      <p>A 0–1 ratio measuring how exposed-to-change a module is, from Robert C. Martin's stability metrics.</p>
+      <p class="formula">I = Ce / (Ce + Ca)</p>
+      <p><strong>Ce</strong> (efferent coupling) = how many internal modules this one imports. <strong>Ca</strong> (afferent coupling) = how many internal modules import it. If both are zero, I defaults to 0.</p>
+      <ul>
+        <li><strong>I = 0</strong> — <span class="pill stable">stable</span>: many depend on it, it depends on none. Hard to change without breaking the world.</li>
+        <li><strong>I ≈ 0.5</strong> — <span class="pill mid">mid</span>: balanced.</li>
+        <li><strong>I = 1</strong> — <span class="pill unstable">unstable</span>: depends on many, nothing depends on it. Cheap to change.</li>
+      </ul>
+      <p>Healthy codebases mix cores near 0 with leaves near 1. A module high in both Ca <em>and</em> Ce is a fragile bottleneck — refactor candidate.</p>
+    </div>
+  </details>
+  <details class="explainer">
+    <summary>What is cohesion (LCOM4)?</summary>
+    <div class="explainer-body">
+      <p>LCOM4 — <em>Lack of Cohesion of Methods, version 4</em> — asks: is this class actually one thing, or several things bolted together?</p>
+      <h5>How it's computed, per class</h5>
+      <p>Treat each method as a node. Connect two methods if they reference the same instance attribute (e.g. both touch <code>self.config</code>). LCOM4 = the number of connected components.</p>
+      <ul>
+        <li><strong>LCOM4 = 1</strong> — one cluster, everything is related. Coherent.</li>
+        <li><strong>LCOM4 = N &gt; 1</strong> — N islands sharing no state. The class is really N classes glued together.</li>
+        <li><strong>LCOM4 = 0</strong> — no methods.</li>
+      </ul>
+      <p>The column shows the average over the module's top-level classes. <code>—</code> means the module has no classes.</p>
+      <p>Caveat: only attribute references via <code>self.X</code> create edges; inheritance and method-to-method calls (unless the called name is also referenced elsewhere as an attribute) aren't tracked.</p>
+    </div>
+  </details>
   <table id="metrics-table">
     <thead><tr>
       <th data-sort="module">module</th>
-      <th data-sort="lang">lang</th>
-      <th data-sort="loc">LOC</th>
-      <th data-sort="classes">cls</th>
-      <th data-sort="functions">fn</th>
-      <th data-sort="fan_in">Ca</th>
-      <th data-sort="fan_out">Ce</th>
-      <th data-sort="instability">I</th>
-      <th data-sort="avg_lcom4">LCOM4</th>
+      <th data-sort="lang">lang <span class="help-icon" data-help-key="language" tabindex="0" role="button" aria-label="What is this?">?</span></th>
+      <th data-sort="loc">LOC <span class="help-icon" data-help-key="loc" tabindex="0" role="button" aria-label="What is this?">?</span></th>
+      <th data-sort="classes">cls <span class="help-icon" data-help-key="classes" tabindex="0" role="button" aria-label="What is this?">?</span></th>
+      <th data-sort="functions">fn <span class="help-icon" data-help-key="functions" tabindex="0" role="button" aria-label="What is this?">?</span></th>
+      <th data-sort="fan_in">Ca <span class="help-icon" data-help-key="fan_in" tabindex="0" role="button" aria-label="What is this?">?</span></th>
+      <th data-sort="fan_out">Ce <span class="help-icon" data-help-key="fan_out" tabindex="0" role="button" aria-label="What is this?">?</span></th>
+      <th data-sort="instability">I <span class="help-icon" data-help-key="instability_col" tabindex="0" role="button" aria-label="What is this?">?</span></th>
+      <th data-sort="avg_lcom4">LCOM4 <span class="help-icon" data-help-key="lcom4_col" tabindex="0" role="button" aria-label="What is this?">?</span></th>
     </tr></thead>
     <tbody></tbody>
   </table>
@@ -58,17 +106,57 @@
 <section>
   <h2>Coupling matrix</h2>
   <div class="sub">Rows import columns. Cell intensity = number of imported names. Diagonals are self-references (always blank).</div>
+  <details class="explainer">
+    <summary>How to read this matrix</summary>
+    <div class="explainer-body">
+      <p>An N×N grid answering, per cell: <em>how many distinct names does the row module import from the column module?</em> Brighter cells = more names imported.</p>
+      <ul>
+        <li><strong>Rows import columns.</strong> A bright cell at row <code>main</code> × column <code>database</code> means <code>main.py</code> does something like <code>from database import a, b, c</code>.</li>
+        <li><strong>Diagonal is always blank</strong> — self-imports aren't tracked.</li>
+        <li><strong>Hover</strong> a non-blank cell for the exact name count.</li>
+      </ul>
+      <h5>Patterns to look for</h5>
+      <ul>
+        <li><strong>Dense rows</strong> = high Ce (the module knows about lots of others — leaf-like).</li>
+        <li><strong>Dense columns</strong> = high Ca (lots of modules depend on it — a stable core).</li>
+        <li><strong>Clusters of bright cells</strong> grouped together reveal sub-systems that depend mostly on each other.</li>
+      </ul>
+    </div>
+  </details>
   <svg id="matrix"></svg>
 </section>
 </div>
 
 <section>
   <h2>Architectural layers</h2>
+  <details class="explainer">
+    <summary>What does this diagram show?</summary>
+    <div class="explainer-body">
+      <p>A Mermaid flow diagram that groups modules into roles and shows imports between layers (not between individual modules — for that, use the force graph at the top of the page).</p>
+      <h5>How layers are detected</h5>
+      <ul>
+        <li><strong>main</strong> — module whose dotted leaf-name is <code>main</code>.</li>
+        <li><strong>routers</strong> — anything matching <code>routers.*</code> in its name.</li>
+        <li><strong>data</strong> — module whose leaf-name is <code>database</code>.</li>
+        <li><strong>services</strong> — everything else that main / routers depend on.</li>
+      </ul>
+      <p>If no module fits a layer at this commit, that subgraph is dropped from the diagram.</p>
+      <h5>Why it matters</h5>
+      <p>Helps spot architectural drift. Arrows should generally point inward (routers → services → data), not outward — a data-layer module reaching back into routers is a smell.</p>
+    </div>
+  </details>
   <div class="mermaid-host" id="mermaid-layers"></div>
 </section>
 
 <section>
   <h2>ORM class diagram</h2>
+  <details class="explainer">
+    <summary>What does this diagram show?</summary>
+    <div class="explainer-body">
+      <p>A UML-style class diagram of the SQLAlchemy ORM classes detected in a module whose leaf-name is <code>database</code>. Each class shows its columns (inferred from class-body assignments) and the relationships inferred from <code>ForeignKey</code> declarations.</p>
+      <p>Falls back to empty if there's no <code>database</code>-named module at this commit, or if the classes don't look like ORM models. Pure Python-level analysis — actual <code>CREATE TABLE</code> SQL isn't inspected, and dynamically-defined columns won't appear.</p>
+    </div>
+  </details>
   <div class="mermaid-host" id="mermaid-classes"></div>
 </section>
 </main>

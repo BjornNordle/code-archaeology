@@ -47,6 +47,7 @@ th:first-child, td:first-child { text-align: left; }
 th {
   color: var(--muted); font-weight: 500; cursor: pointer;
   text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 th:hover { color: var(--accent); }
 tbody tr:hover { background: var(--panel-2); }
@@ -188,3 +189,88 @@ dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top
 
 #matrix { display: block; }
 #matrix text { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* ── In-context help: (?) icon + click-popover for simple units ──────────── */
+.help-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--panel-2); border: 1px solid var(--border);
+  color: var(--muted); font: 600 10px/1 ui-sans-serif, system-ui, sans-serif;
+  margin-left: 4px; vertical-align: middle; cursor: help; user-select: none;
+  text-transform: none; letter-spacing: 0;
+}
+.help-icon:hover, .help-icon:focus {
+  background: var(--accent); color: var(--bg);
+  border-color: var(--accent); outline: none;
+}
+th .help-icon { margin-left: 3px; }
+.stat .lbl .help-icon { margin-left: 4px; }
+dialog label .help-icon { margin-left: 6px; }
+
+.help-popover {
+  position: absolute; z-index: 1000;
+  background: var(--panel-2); border: 1px solid var(--accent);
+  border-radius: 6px; padding: 10px 14px;
+  max-width: 340px; min-width: 200px;
+  font: 12px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  color: var(--text); text-transform: none; letter-spacing: 0;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.55);
+}
+.help-popover h4 {
+  margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.help-popover p { margin: 0 0 6px; }
+.help-popover p:last-child { margin-bottom: 0; }
+.help-popover code, .help-popover .formula {
+  background: var(--bg); padding: 1px 5px; border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+}
+.help-popover .formula { display: inline-block; padding: 3px 8px; margin: 2px 0; }
+.help-popover ul { margin: 4px 0 6px; padding-left: 18px; }
+.help-popover li { margin-bottom: 2px; }
+
+/* ── Bigger-concept explainer: expandable "What is this?" panel ──────────── */
+.explainer {
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 6px; margin: 4px 0 16px;
+  font-size: 13px;
+}
+.explainer summary {
+  padding: 8px 14px; cursor: pointer;
+  color: var(--accent); font-weight: 500; user-select: none;
+  list-style: none; outline: none;
+}
+.explainer summary::-webkit-details-marker { display: none; }
+.explainer summary::before {
+  content: "▸"; display: inline-block; margin-right: 8px;
+  color: var(--muted); transition: transform 0.15s ease;
+}
+.explainer[open] > summary::before { transform: rotate(90deg); }
+.explainer summary:hover { color: var(--text); }
+.explainer summary:focus-visible { outline: 1px solid var(--accent); border-radius: 4px; }
+.explainer-body {
+  padding: 4px 14px 14px 30px; color: var(--text); line-height: 1.65;
+}
+.explainer-body > *:first-child { margin-top: 0; }
+.explainer-body > *:last-child { margin-bottom: 0; }
+.explainer-body p { margin: 0 0 10px; }
+.explainer-body h5 {
+  margin: 14px 0 4px; font-size: 12px; font-weight: 600; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.explainer-body code {
+  background: var(--bg); padding: 1px 5px; border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+}
+.explainer-body .formula {
+  display: inline-block; background: var(--bg); padding: 4px 10px;
+  border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px; margin: 2px 0;
+}
+.explainer-body ul { margin: 4px 0 10px; padding-left: 22px; }
+.explainer-body li { margin-bottom: 4px; }
+.explainer-body .swatch-inline {
+  display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+  vertical-align: middle; margin: 0 2px 0 0;
+}

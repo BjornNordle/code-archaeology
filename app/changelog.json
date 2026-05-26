@@ -1,5 +1,15 @@
 [
   {
+    "version": "0.1.8",
+    "date": "2026-05-26",
+    "changes": [
+      {"type": "feature", "text": "In-context explanations everywhere: every simple unit (LOC, classes, functions, Ca, Ce, I, LCOM4, scan-filter fields, repo-form fields, hotspots columns, delta pills) now has a clickable (?) help icon that opens a popover with its definition. Bigger concepts (instability, cohesion/LCOM4, the force-directed graph, coupling matrix, architectural layers, ORM diagram, hotspots) get expandable 'What is this?' panels under their section headers with full explanations, formulas, how-to-read guides, and caveats."},
+      {"type": "feature", "text": "Index page: top-level 'What is code-archaeology?' explainer covering the project's purpose and the Python-only / linear-history limitations."},
+      {"type": "feature", "text": "Help popovers attach to the parent <dialog> when triggered from inside one, so they render above the dialog's top-layer backdrop instead of being hidden behind it."},
+      {"type": "feature", "text": "Scanned-commits table: moved the err pill to its own column so the column-header help icon explains what it means; previously it floated inline next to the SHA."}
+    ]
+  },
+  {
     "version": "0.1.7",
     "date": "2026-05-26",
     "changes": [

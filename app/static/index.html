@@ -25,21 +25,36 @@
     <h2 style="margin: 0;">Tracked repositories</h2>
     <button class="primary" id="add-btn">Add repo</button>
   </div>
+  <details class="explainer">
+    <summary>What is code-archaeology?</summary>
+    <div class="explainer-body">
+      <p>A per-commit architecture scanner. You register a git repo here, the scanner walks its history (every commit, or a filtered subset), runs a Python AST analyzer on each commit, and stores per-module metrics in SQLite.</p>
+      <p>Once data is in, the repo page shows how the codebase's <strong>size, coupling, and cohesion</strong> evolved over time, and a per-commit snapshot page shows the full architecture (module graph, coupling matrix, layered view, ORM diagram) at any point in history.</p>
+      <h5>Limitations to know up front</h5>
+      <ul>
+        <li><strong>Python-only AST.</strong> Classes, methods, fan-in/out, and LCOM4 are only computed for <code>.py</code> files. Other languages get a per-extension LOC count as a fallback.</li>
+        <li><strong>Linear history.</strong> The walk is <code>git log --first-parent --reverse</code>. Merge commits are followed via their first parent only — good enough for <code>main</code>-style histories.</li>
+      </ul>
+    </div>
+  </details>
   <div id="repos"></div>
 </section>
 </main>
 
 <dialog id="add-dialog">
   <h3>Add a repository</h3>
-  <label>Name <input id="f-name" placeholder="my-app" required></label>
-  <label>Remote URL (optional) <input id="f-url" placeholder="https://github.com/owner/repo.git"></label>
-  <label>Local path (optional, mutually exclusive with URL)
+  <label>Name <span class="help-icon" data-help-key="repo_name" tabindex="0" role="button" aria-label="What is this?">?</span>
+    <input id="f-name" placeholder="my-app" required></label>
+  <label>Remote URL (optional) <span class="help-icon" data-help-key="repo_url" tabindex="0" role="button" aria-label="What is this?">?</span>
+    <input id="f-url" placeholder="https://github.com/owner/repo.git"></label>
+  <label>Local path (optional, mutually exclusive with URL) <span class="help-icon" data-help-key="repo_local" tabindex="0" role="button" aria-label="What is this?">?</span>
     <input id="f-local" placeholder="/repos/my-app">
   </label>
-  <label>Sub-path to analyze (optional, e.g. <span class="mono">app</span>)
+  <label>Sub-path to analyze (optional, e.g. <span class="mono">app</span>) <span class="help-icon" data-help-key="repo_sub" tabindex="0" role="button" aria-label="What is this?">?</span>
     <input id="f-sub">
   </label>
-  <label>Default branch <input id="f-branch" value="main"></label>
+  <label>Default branch <span class="help-icon" data-help-key="repo_branch" tabindex="0" role="button" aria-label="What is this?">?</span>
+    <input id="f-branch" value="main"></label>
   <div class="actions">
     <button id="cancel-btn">Cancel</button>
     <button class="primary" id="save-btn">Save</button>
