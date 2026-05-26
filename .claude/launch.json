@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "code-archaeology",
+      "runtimeExecutable": "app/venv/bin/uvicorn",
+      "runtimeArgs": ["main:app", "--host", "127.0.0.1", "--port", "8081", "--reload", "--app-dir", "app"],
+      "port": 8081
+    }
+  ]
+}
