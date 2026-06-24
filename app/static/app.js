@@ -410,9 +410,7 @@ async function initRepoPage() {
   await loadCommits();
   await loadHotspots();
 
-  document.getElementById("refresh-btn").onclick = async () => {
-    await Promise.all([loadRepoMeta(), loadTimeline(), loadCommits(), pollJob()]);
-  };
+  document.getElementById("refresh-btn").onclick = manualRefresh;
   document.getElementById("scan-btn").onclick = openScanDialog;
   document.getElementById("scan-cancel").onclick = () => {
     document.getElementById("scan-dialog").close();
@@ -421,6 +419,23 @@ async function initRepoPage() {
   document.getElementById("hot-refresh").onclick = loadHotspots;
 
   pollJob();
+}
+
+async function manualRefresh() {
+  const btn = document.getElementById("refresh-btn");
+  if (btn.disabled) return;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Refreshing…";
+  try {
+    await Promise.all([loadRepoMeta(), loadTimeline(), loadCommits(), loadHotspots(), pollJob()]);
+    toast("Refreshed", "success");
+  } catch (e) {
+    toast(e.message || "Refresh failed", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
 }
 
 async function loadRepoMeta() {
@@ -658,22 +673,42 @@ async function startScan() {
 }
 
 let pollTimer = null;
+let lastJobStatus = null;
 async function pollJob() {
   if (pollTimer) clearTimeout(pollTimer);
+  let j;
   try {
     const jobs = await api(`/api/repos/${REPO_ID}/jobs`);
-    const j = jobs[0];
-    const status = document.getElementById("job-status");
-    if (!j) { status.textContent = "no scans yet"; return; }
-    const pct = j.total_commits ? Math.round((j.scanned_commits / j.total_commits) * 100) : 0;
-    status.innerHTML = `Latest job: <strong>${j.status}</strong>` +
-      (j.total_commits ? ` — ${j.scanned_commits}/${j.total_commits} (${pct}%)` : "") +
-      (j.error ? ` <span class="danger">${escapeHtml(j.error.split("\n")[0])}</span>` : "") +
-      ` <span class="muted">${fmtDate(j.created_at)}</span>`;
-    if (j.status === "running" || j.status === "pending") {
-      pollTimer = setTimeout(() => { pollJob(); loadTimeline(); loadCommits(); loadRepoMeta(); }, 3000);
-    }
-  } catch (e) { /* ignore polling errors */ }
+    j = jobs[0];
+  } catch (e) { return; }
+
+  const status = document.getElementById("job-status");
+  if (!j) { status.textContent = "no scans yet"; lastJobStatus = null; return; }
+
+  const pct = j.total_commits ? Math.round((j.scanned_commits / j.total_commits) * 100) : 0;
+  status.innerHTML = `Latest job: <strong>${j.status}</strong>` +
+    (j.total_commits ? ` — ${j.scanned_commits}/${j.total_commits} (${pct}%)` : "") +
+    (j.error ? ` <span class="danger">${escapeHtml(j.error.split("\n")[0])}</span>` : "") +
+    ` <span class="muted">${fmtDate(j.created_at)}</span>`;
+
+  const wasActive = lastJobStatus === "running" || lastJobStatus === "pending";
+  const nowActive = j.status === "running" || j.status === "pending";
+  lastJobStatus = j.status;
+
+  if (nowActive) {
+    pollTimer = setTimeout(() => {
+      pollJob(); loadTimeline(); loadCommits(); loadRepoMeta(); loadHotspots();
+    }, 3000);
+  } else if (wasActive) {
+    // Job just transitioned from running/pending → done/error. The last
+    // commits scanned often land between the prior poll and this one, so
+    // the charts/tables are stale until we fetch one more time.
+    await Promise.all([loadRepoMeta(), loadTimeline(), loadCommits(), loadHotspots()]);
+    toast(
+      j.status === "error" ? "Scan failed" : `Scan complete — ${j.scanned_commits} commit${j.scanned_commits === 1 ? "" : "s"}`,
+      j.status === "error" ? "error" : "success",
+    );
+  }
 }
 
 // ── COMMIT (snapshot) PAGE ─────────────────────────────────────────────────
