@@ -86,6 +86,10 @@ if STATIC_DIR.is_dir():
     def index():
         return FileResponse(str(STATIC_DIR / "index.html"))
 
+    @app.get("/favicon.ico", include_in_schema=False)
+    def favicon():
+        return FileResponse(str(STATIC_DIR / "favicon.svg"), media_type="image/svg+xml")
+
     @app.get("/repo/{repo_id:int}")
     def repo_page(repo_id: int):
         return FileResponse(str(STATIC_DIR / "repo.html"))

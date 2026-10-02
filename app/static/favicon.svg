@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#0f1115"/>
+  <!-- strata: git history as sediment layers -->
+  <path d="M4 8.5 Q10 6.5 16 8.5 T28 8.5 V12.5 Q22 14.5 16 12.5 T4 12.5 Z" fill="#4dd0e1"/>
+  <path d="M4 14.5 Q10 12.5 16 14.5 T28 14.5 V18.5 Q22 20.5 16 18.5 T4 18.5 Z" fill="#ffb74d"/>
+  <path d="M4 20.5 Q10 18.5 16 20.5 T28 20.5 V24.5 Q22 26.5 16 24.5 T4 24.5 Z" fill="#66bb6a"/>
+  <!-- commit line digging through the layers -->
+  <line x1="16" y1="4" x2="16" y2="25" stroke="#e8eaed" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="16" cy="11.5" r="2.6" fill="#0f1115" stroke="#e8eaed" stroke-width="1.8"/>
+  <circle cx="16" cy="23.5" r="2.6" fill="#0f1115" stroke="#e8eaed" stroke-width="1.8"/>
+</svg>
