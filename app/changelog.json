@@ -1,5 +1,13 @@
 [
   {
+    "version": "0.1.9",
+    "date": "2026-10-10",
+    "changes": [
+      {"type": "feature", "text": "Deploy workflow runs pip-audit against the built image and reports any known CVEs (report only, never blocks a deploy)."},
+      {"type": "fix", "text": "Deploy notifications now go straight to ntfy instead of the uptime-monitor broadcast API, which never fired."}
+    ]
+  },
+  {
     "version": "0.1.8",
     "date": "2026-05-26",
     "changes": [
