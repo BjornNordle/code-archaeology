@@ -32,6 +32,36 @@ jobs:
           done
           echo "Health check failed after 2 minutes" && exit 1
 
+      - name: pip-audit (report only)
+        env:
+          NTFY_URL: ${{ secrets.NTFY_URL }}
+        run: |
+          set +e  # report-only: findings never fail the deploy
+          # Audit exactly what's installed in the built image. Freeze first so
+          # pip-audit's own deps (installed only for this throwaway container) aren't audited.
+          docker compose run --rm --no-deps -T --user root --entrypoint sh app -c '
+            pip freeze > /tmp/installed.txt &&
+            pip install --quiet --no-cache-dir --root-user-action=ignore pip-audit >/dev/null 2>&1 &&
+            pip-audit -r /tmp/installed.txt --no-deps --disable-pip --progress-spinner off
+          ' > "$RUNNER_TEMP/pip-audit.txt" 2>&1
+          rc=$?
+          cat "$RUNNER_TEMP/pip-audit.txt"
+          [ $rc -eq 0 ] && exit 0
+
+          summary=$(grep -E '^Found [0-9]+ known vulnerabilit' "$RUNNER_TEMP/pip-audit.txt")
+          if [ -z "$summary" ]; then
+            echo "::warning title=pip-audit::scan did not complete (exit $rc)"
+            exit 0
+          fi
+          echo "::warning title=pip-audit::$summary"
+          [ -z "$NTFY_URL" ] && exit 0
+          grep -v -i '^warning' "$RUNNER_TEMP/pip-audit.txt" | head -c 3500 | \
+            curl -sf -X POST "$NTFY_URL" \
+              -H "Title: [CVE] code-archaeology — $summary" \
+              -H "Tags: warning" \
+              -H "Priority: high" \
+              --data-binary @- || true
+
       - name: Notify deploy success
         if: success() && env.UPTIME_DEPLOY_API_KEY != ''
         env:
