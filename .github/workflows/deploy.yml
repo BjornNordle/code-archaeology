@@ -63,21 +63,25 @@ jobs:
               --data-binary @- || true
 
       - name: Notify deploy success
-        if: success() && env.UPTIME_DEPLOY_API_KEY != ''
+        if: success()
         env:
-          UPTIME_DEPLOY_API_KEY: ${{ secrets.UPTIME_DEPLOY_API_KEY }}
+          NTFY_URL: ${{ secrets.NTFY_URL }}
         run: |
-          curl -sf -X POST http://localhost/api/notifications/broadcast \
-            -H "X-API-Key: $UPTIME_DEPLOY_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"title\":\"[DEPLOYED] code-archaeology\",\"body\":\"Deploy succeeded — commit ${{ github.sha }} by ${{ github.actor }}\",\"event\":\"deploy_success\",\"is_down\":false}" || true
+          [ -z "$NTFY_URL" ] && exit 0
+          curl -sf -X POST "$NTFY_URL" \
+            -H "Title: [DEPLOYED] code-archaeology" \
+            -H "Tags: white_check_mark" \
+            -H "Priority: default" \
+            -d "Deploy succeeded — commit ${{ github.sha }} by ${{ github.actor }}" || true
 
       - name: Notify deploy failure
-        if: failure() && env.UPTIME_DEPLOY_API_KEY != ''
+        if: failure()
         env:
-          UPTIME_DEPLOY_API_KEY: ${{ secrets.UPTIME_DEPLOY_API_KEY }}
+          NTFY_URL: ${{ secrets.NTFY_URL }}
         run: |
-          curl -sf -X POST http://localhost/api/notifications/broadcast \
-            -H "X-API-Key: $UPTIME_DEPLOY_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"title\":\"[DEPLOY FAILED] code-archaeology\",\"body\":\"Deploy FAILED — commit ${{ github.sha }} by ${{ github.actor }}\",\"event\":\"deploy_failure\",\"is_down\":true}" || true
+          [ -z "$NTFY_URL" ] && exit 0
+          curl -sf -X POST "$NTFY_URL" \
+            -H "Title: [DEPLOY FAILED] code-archaeology" \
+            -H "Tags: rotating_light" \
+            -H "Priority: urgent" \
+            -d "Deploy FAILED — commit ${{ github.sha }} by ${{ github.actor }}" || true
